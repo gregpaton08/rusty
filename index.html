@@ -19,26 +19,31 @@
         let playing = false;
         let interval = null;
         const imgElement = document.getElementById("timelapse");
+        const backendUrl = "http://127.0.0.1:3000"; // Rust backend URL
 
         async function loadImages() {
-            const response = await fetch("http://localhost:3000/images");
-            images = await response.json();
-            if (images.length > 0) {
-                imgElement.src = `http://localhost:3000/timelapse/${images[0]}`;
+            try {
+                const response = await fetch(`${backendUrl}/images`);
+                images = await response.json();
+                if (images.length > 0) {
+                    imgElement.src = `${backendUrl}/timelapse/${images[0]}`;
+                }
+            } catch (error) {
+                console.error("Failed to load images:", error);
             }
         }
 
         function nextFrame() {
             if (currentFrame < images.length - 1) {
                 currentFrame++;
-                imgElement.src = `http://localhost:3000/timelapse/${images[currentFrame]}`;
+                imgElement.src = `${backendUrl}/timelapse/${images[currentFrame]}`;
             }
         }
 
         function prevFrame() {
             if (currentFrame > 0) {
                 currentFrame--;
-                imgElement.src = `http://localhost:3000/timelapse/${images[currentFrame]}`;
+                imgElement.src = `${backendUrl}/timelapse/${images[currentFrame]}`;
             }
         }
 
