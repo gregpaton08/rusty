@@ -34,27 +34,30 @@
         }
 
         function nextFrame() {
-            if (currentFrame < images.length - 1) {
-                currentFrame++;
-                imgElement.src = `${backendUrl}/timelapse/${images[currentFrame]}`;
-            }
+            if (images.length === 0) return;
+
+            currentFrame = (currentFrame + 1) % images.length; // Loop back to start
+            imgElement.src = `${backendUrl}/timelapse/${images[currentFrame]}`;
         }
 
+
         function prevFrame() {
-            if (currentFrame > 0) {
-                currentFrame--;
-                imgElement.src = `${backendUrl}/timelapse/${images[currentFrame]}`;
-            }
+            if (images.length === 0) return;
+
+            currentFrame = (currentFrame - 1 + images.length) % images.length; // Loop backward
+            imgElement.src = `${backendUrl}/timelapse/${images[currentFrame]}`;
         }
+
 
         function togglePlay() {
             if (playing) {
                 clearInterval(interval);
             } else {
-                interval = setInterval(nextFrame, 100); // Adjust speed as needed
+                interval = setInterval(nextFrame, 150); // Adjust speed as needed
             }
             playing = !playing;
         }
+
 
         loadImages();
     </script>
