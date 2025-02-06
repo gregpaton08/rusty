@@ -1,6 +1,6 @@
 use axum::{
     extract::State,
-    http::StatusCode,
+    http::Method,
     response::{IntoResponse, Json},
     routing::get,
     Router,
@@ -20,24 +20,31 @@ async fn main() {
         image_dir: "images".to_string(),
     });
 
+    // Configure CORS to allow access from any origin
     let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_origin(Any) // Allow requests from any domain
+        .allow_methods([Method::GET])
+        .allow_headers(Any); // Allow all headers
 
     let app = Router::new()
         .route("/images", get(list_images))
         .nest_service("/timelapse", ServeDir::new(&state.image_dir))
-        .layer(cors)
+        .layer(cors) // Apply the CORS layer
         .with_state(state);
 
-    // let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
-        .await
-        .unwrap();
-    // println!("Server running at http://{}", addr);
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000)); // Bind to all interfaces
+    println!("Server running at http://{}", addr);
+
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+    .await.unwrap();
+
+    // axum::Server::bind(&addr)
+    //     .serve(app.into_make_service())
+    //     .await
+    //     .unwrap();
 
     axum::serve(listener, app).await.unwrap();
+
 }
 
 async fn list_images(State(state): State<Arc<AppState>>) -> impl IntoResponse {
@@ -56,10 +63,6 @@ async fn list_images(State(state): State<Arc<AppState>>) -> impl IntoResponse {
             images.sort();
             Json(images).into_response()
         }
-        Err(_) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Failed to read directory",
-        )
-            .into_response(),
+        Err(_) => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Failed to read directory").into_response(),
     }
 }

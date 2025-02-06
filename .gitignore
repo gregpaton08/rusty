@@ -1,3 +1,4 @@
 backend/images/
 backend/target/
 node_modules/
+nginx/logs/
