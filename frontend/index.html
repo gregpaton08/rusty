@@ -8,61 +8,11 @@
 <body>
     <img id="timelapse" width="800">
     <div>
-        <button onclick="prevFrame()">⏪ Prev</button>
-        <button onclick="togglePlay()">▶️ Play/Pause</button>
-        <button onclick="nextFrame()">⏩ Next</button>
+        <button id="prevBtn">⏪ Prev</button>
+        <button id="playPauseBtn">▶️ Play/Pause</button>
+        <button id="nextBtn">⏩ Next</button>
     </div>
 
-    <script>
-        let images = [];
-        let currentFrame = 0;
-        let playing = false;
-        let interval = null;
-        const imgElement = document.getElementById("timelapse");
-        const backendUrl = "/api"; // Rust backend URL
-        // const backendUrl = "http://0.0.0.0:3000"; // Rust backend URL
-
-        async function loadImages() {
-            try {
-                const response = await fetch(`${backendUrl}/images`);
-                images = await response.json();
-                if (images.length > 0) {
-                    imgElement.src = `${backendUrl}/timelapse/${images[0]}`;
-                }
-            } catch (error) {
-                console.error("Failed to load images:", error);
-            }
-        }
-
-        function nextFrame() {
-            if (images.length === 0) return;
-
-            currentFrame = (currentFrame + 1) % images.length; // Loop back to start
-            imgElement.src = `${backendUrl}/timelapse/${images[currentFrame]}`;
-        }
-
-
-        function prevFrame() {
-            if (images.length === 0) return;
-
-            currentFrame = (currentFrame - 1 + images.length) % images.length; // Loop backward
-            imgElement.src = `${backendUrl}/timelapse/${images[currentFrame]}`;
-        }
-
-
-        function togglePlay() {
-            if (playing) {
-                clearInterval(interval);
-            } else {
-                interval = setInterval(nextFrame, 100); // Adjust speed as needed
-            }
-            playing = !playing;
-        }
-
-
-
-        loadImages();
-        togglePlay();
-    </script>
+    <script type="module" src="/main.js"></script>
 </body>
 </html>
