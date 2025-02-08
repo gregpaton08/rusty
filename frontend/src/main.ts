@@ -1,4 +1,9 @@
 const backendUrl = "/api"; // Rust backend URL
+const image_size = window.innerWidth <= 640 ? 'small'
+  : window.innerWidth <= 1280 ? 'medium'
+    : window.innerWidth <= 1920 ? 'large'
+      : 'original';
+const imageUrl = `${backendUrl}/image/${image_size}/`;
 
 let images: string[] = [];
 let currentFrame: number = 0;
@@ -15,7 +20,7 @@ async function loadImages(): Promise<void> {
         const response = await fetch(`${backendUrl}/images`);
         images = await response.json();
         if (images.length > 0) {
-            imgElement.src = `${backendUrl}/timelapse/${images[0]}`;
+            imgElement.src = `${imageUrl}/${images[0]}`;
         }
     } catch (error) {
         console.error("Failed to load images:", error);
@@ -26,14 +31,14 @@ function nextFrame(): void {
     if (images.length === 0) return;
 
     currentFrame = (currentFrame + 1) % images.length; // Loop back to start
-    imgElement.src = `${backendUrl}/timelapse/${images[currentFrame]}`;
+    imgElement.src = `${imageUrl}/${images[currentFrame]}`;
 }
 
 function prevFrame(): void {
     if (images.length === 0) return;
 
     currentFrame = (currentFrame - 1 + images.length) % images.length; // Loop backward
-    imgElement.src = `${backendUrl}/timelapse/${images[currentFrame]}`;
+    imgElement.src = `${imageUrl}/${images[currentFrame]}`;
 }
 
 function togglePlay(): void {

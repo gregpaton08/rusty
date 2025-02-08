@@ -11,45 +11,34 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 
 struct AppState {
-    image_dir: String,
+    image_dirs: std::collections::HashMap<String, String>,
 }
 
 #[tokio::main]
 async fn main() {
-    let state = Arc::new(AppState {
-        image_dir: "images".to_string(),
-    });
+    let image_dirs = std::collections::HashMap::from([
+        ("original".to_string(), "images/original".to_string()),
+        ("large".to_string(), "images/large".to_string()),
+        ("medium".to_string(), "images/medium".to_string()),
+        ("small".to_string(), "images/small".to_string()),
+    ]);
 
-    // // Configure CORS to allow access from any origin
-    // let cors = CorsLayer::new()
-    //     .allow_origin(Any) // Allow requests from any domain
-    //     .allow_methods([Method::GET])
-    //     .allow_headers(Any); // Allow all headers
+    let state = Arc::new(AppState { image_dirs });
 
     let app = Router::new()
         .route("/images", get(list_images))
-        .nest_service("/timelapse", ServeDir::new(&state.image_dir))
-        // .layer(cors) // Apply the CORS layer
+        .route("/image/{size}/{filename}", get(serve_image))
         .with_state(state);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000)); // Bind to all interfaces
-    println!("Server running at http://{}", addr);
-
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
-    // let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
-    .await.unwrap();
-
-    // axum::Server::bind(&addr)
-    //     .serve(app.into_make_service())
-    //     .await
-    //     .unwrap();
+        .await.unwrap();
 
     axum::serve(listener, app).await.unwrap();
 
 }
 
 async fn list_images(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    match fs::read_dir(&state.image_dir) {
+    match fs::read_dir(state.image_dirs.get("original").unwrap()) {
         Ok(entries) => {
             let mut images: Vec<String> = entries
                 .filter_map(|entry| entry.ok())
@@ -65,5 +54,43 @@ async fn list_images(State(state): State<Arc<AppState>>) -> impl IntoResponse {
             Json(images).into_response()
         }
         Err(_) => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Failed to read directory").into_response(),
+    }
+}
+
+async fn serve_image(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path((size, filename)): axum::extract::Path<(String, String)>,
+) -> impl IntoResponse {
+    let size = match size.as_str() {
+        "small" => "small",
+        "medium" => "medium",
+        "large" => "large",
+        _ => "original",
+    };
+
+    if let Some(dir) = state.image_dirs.get(size) {
+        let path = format!("{}/{}", dir, filename);
+        match fs::read(&path) {
+            Ok(data) => {
+                let content_type = match filename.split('.').last() {
+                    Some("jpg") | Some("jpeg") => "image/jpeg",
+                    Some("png") => "image/png",
+                    Some("webp") => "image/webp",
+                    _ => "application/octet-stream",
+                };
+                ([(axum::http::header::CONTENT_TYPE, content_type)], data).into_response()
+            }
+            Err(_) => (
+                axum::http::StatusCode::NOT_FOUND,
+                "Image not found",
+            )
+                .into_response(),
+        }
+    } else {
+        (
+            axum::http::StatusCode::BAD_REQUEST,
+            "Invalid size parameter",
+        )
+            .into_response()
     }
 }
