@@ -1,3 +1,5 @@
+// import '../styles/style.css';
+
 const backendUrl = "/api"; // Rust backend URL
 const image_size = window.innerWidth <= 640 ? 'small'
   : window.innerWidth <= 1280 ? 'medium'
