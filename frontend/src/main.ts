@@ -13,9 +13,7 @@ let playing: boolean = false;
 let interval: number | null = null;
 
 const imgElement = document.getElementById("timelapse") as HTMLImageElement;
-const prevBtn = document.getElementById("prevBtn") as HTMLButtonElement;
-const playPauseBtn = document.getElementById("playPauseBtn") as HTMLButtonElement;
-const nextBtn = document.getElementById("nextBtn") as HTMLButtonElement;
+const container = document.getElementById("timelapseContainer") as HTMLDivElement;
 
 async function loadImages(): Promise<void> {
     try {
@@ -52,10 +50,29 @@ function togglePlay(): void {
     playing = !playing;
 }
 
-// Attach event listeners
-prevBtn.addEventListener("click", prevFrame);
-playPauseBtn.addEventListener("click", togglePlay);
-nextBtn.addEventListener("click", nextFrame);
+function handleClick(event: MouseEvent): void {
+    const rect = container.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const width = rect.width;
+    
+    // Left third of the image
+    if (x < width / 3) {
+        if (playing) togglePlay(); // Pause if playing
+        prevFrame();
+    }
+    // Right third of the image
+    else if (x > (width * 2) / 3) {
+        if (playing) togglePlay(); // Pause if playing
+        nextFrame();
+    }
+    // Center third of the image
+    else {
+        togglePlay();
+    }
+}
+
+// Add new event listener
+container.addEventListener("click", handleClick);
 
 // Load images on startup
 loadImages();
