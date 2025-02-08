@@ -20,22 +20,23 @@ async fn main() {
         image_dir: "images".to_string(),
     });
 
-    // Configure CORS to allow access from any origin
-    let cors = CorsLayer::new()
-        .allow_origin(Any) // Allow requests from any domain
-        .allow_methods([Method::GET])
-        .allow_headers(Any); // Allow all headers
+    // // Configure CORS to allow access from any origin
+    // let cors = CorsLayer::new()
+    //     .allow_origin(Any) // Allow requests from any domain
+    //     .allow_methods([Method::GET])
+    //     .allow_headers(Any); // Allow all headers
 
     let app = Router::new()
         .route("/images", get(list_images))
         .nest_service("/timelapse", ServeDir::new(&state.image_dir))
-        .layer(cors) // Apply the CORS layer
+        // .layer(cors) // Apply the CORS layer
         .with_state(state);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000)); // Bind to all interfaces
     println!("Server running at http://{}", addr);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+    // let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
     .await.unwrap();
 
     // axum::Server::bind(&addr)

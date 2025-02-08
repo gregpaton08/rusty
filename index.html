@@ -19,7 +19,8 @@
         let playing = false;
         let interval = null;
         const imgElement = document.getElementById("timelapse");
-        const backendUrl = "http://127.0.0.1:3000"; // Rust backend URL
+        const backendUrl = "/api"; // Rust backend URL
+        // const backendUrl = "http://0.0.0.0:3000"; // Rust backend URL
 
         async function loadImages() {
             try {
@@ -53,13 +54,15 @@
             if (playing) {
                 clearInterval(interval);
             } else {
-                interval = setInterval(nextFrame, 150); // Adjust speed as needed
+                interval = setInterval(nextFrame, 100); // Adjust speed as needed
             }
             playing = !playing;
         }
 
 
+
         loadImages();
+        togglePlay();
     </script>
 </body>
 </html>
