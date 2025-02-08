@@ -5,6 +5,10 @@ img {
   max-width: 100%;
 }
 
+body {
+  margin: 0;
+}
+
 /* When phone is in landscape mode */
 @media screen and (orientation: landscape) {
   img {
@@ -13,6 +17,6 @@ img {
       object-fit: contain;
       /* Optional: center the image if it doesn't fill the whole space */
       display: block;
-      margin: auto;
+      margin: 0;
   }
 }
