@@ -16,3 +16,10 @@ clean:
 .PHONY: nginx-reload
 nginx-reload:
 	nginx -s reload
+
+code2prompt:
+	code2prompt . \
+		--template project.hbs \
+		--include "*.rs,*.ts,*.html,*.css,*.toml,*.conf" \
+		--exclude "**/dist/**,**.md**,**.hbs**" \
+		--output-file project_context.md
