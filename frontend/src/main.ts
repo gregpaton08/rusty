@@ -1,129 +1,223 @@
-// import '../styles/style.css';
+// Configuration
+const CONFIG = {
+    BUFFER_AHEAD: 50,      // How many frames to keep loaded ahead
+    BUFFER_BEHIND: 20,     // How many frames to keep loaded behind (for reverse)
+    FPS: 15,               // Target playback speed
+    SWIPE_THRESHOLD: 30,   // Pixels for touch swipe
+};
 
-const backendUrl = "/api"; // Rust backend URL
-const image_size = window.innerWidth <= 640 ? 'small'
-  : window.innerWidth <= 1280 ? 'medium'
+// State
+const backendUrl = "/api";
+// Determine image size based on screen width
+const imageSize = window.innerWidth <= 640 ? 'small'
+    : window.innerWidth <= 1280 ? 'medium'
     : window.innerWidth <= 1920 ? 'large'
-      : 'original';
-const imageUrl = `${backendUrl}/image/${image_size}/`;
+    : 'original';
+const imageUrlBase = `${backendUrl}/image/${imageSize}/`;
 
-let images: string[] = [];
-let preloaded: HTMLImageElement[] = [];
-let currentFrame: number = 0;
-let playing: boolean = false;
-let interval: number | null = null;
-let touchStartX: number = 0;
-let touchStartY: number = 0;
+let manifest: string[] = [];
+// Cache: Map<FrameIndex, HTMLImageElement>
+const imageCache = new Map<number, HTMLImageElement>(); 
 
+let currentFrameIdx = 0;
+let isPlaying = false;
+let lastFrameTime = 0;
+let animationFrameId: number | null = null;
+
+// Touch State
+let touchStartX = 0;
+let touchStartY = 0;
+
+// DOM Elements
 const imgElement = document.getElementById("timelapse") as HTMLImageElement;
 const container = document.getElementById("timelapseContainer") as HTMLDivElement;
+// Optional: Add a simple loading div to your HTML if you want
+const loadingIndicator = document.getElementById("loading") as HTMLDivElement | null;
 
-async function loadImages(): Promise<void> {
+// --- Core Logic ---
+
+async function init() {
     try {
         const response = await fetch(`${backendUrl}/images`);
-        images = await response.json();
-        if (images.length > 0) {
-            // Preload all images
-            preloaded = images.map(name => {
-                const img = new Image();
-                img.src = `${imageUrl}/${name}`;
-                return img;
-            });
-            imgElement.src = preloaded[0].src;
-            imgElement.onload = hideAddressBar;
+        if (!response.ok) throw new Error("Failed to fetch image list");
+        
+        manifest = await response.json();
+        
+        if (manifest.length > 0) {
+            // Initial load: Buffer the first few images immediately
+            updateBuffer(0);
+            
+            // Wait for the FIRST image specifically before showing anything
+            const firstImg = new Image();
+            firstImg.onload = () => {
+                imgElement.src = firstImg.src;
+                if(loadingIndicator) loadingIndicator.style.display = 'none';
+                hideAddressBar();
+                startPlayback(); 
+            };
+            firstImg.src = getImageUrl(0);
+            imageCache.set(0, firstImg);
         }
-    } catch (error) {
-        console.error("Failed to load images:", error);
+    } catch (e) {
+        console.error("Init failed:", e);
     }
 }
 
-function showFrame(frame: number): void {
-    imgElement.src = preloaded[frame].src;
+function getImageUrl(index: number): string {
+    return `${imageUrlBase}${manifest[index]}`;
 }
 
-function nextFrame(): void {
-    if (preloaded.length === 0) return;
-    currentFrame = (currentFrame + 1) % preloaded.length;
-    showFrame(currentFrame);
+/**
+ * Ensures images around the currentIndex are loaded.
+ * Removes images that are too far behind to save memory.
+ */
+function updateBuffer(centerIndex: number) {
+    const total = manifest.length;
+    
+    // 1. Load Ahead
+    for (let i = 0; i < CONFIG.BUFFER_AHEAD; i++) {
+        const idx = (centerIndex + i) % total;
+        if (!imageCache.has(idx)) {
+            const img = new Image();
+            img.src = getImageUrl(idx);
+            imageCache.set(idx, img);
+        }
+    }
+
+    // 2. Clean Behind (Garbage Collection)
+    // We calculate the index that is 'BUFFER_BEHIND' frames behind us
+    // If we have images older than that, we drop them.
+    const cleanupThreshold = (centerIndex - CONFIG.BUFFER_BEHIND + total) % total;
+    
+    // Simple naive cleanup: Iterate map and delete anything not in window
+    // (For very large maps, a circular buffer array is better, but Map is fine for <100 items)
+    for (const key of imageCache.keys()) {
+        // Calculate distance from current frame
+        let dist = key - centerIndex;
+        if (dist < 0) dist += total; // Handle wrapping
+        
+        // If it's not in the "keep" window (behind OR ahead), delete it
+        if (dist > CONFIG.BUFFER_AHEAD && dist < (total - CONFIG.BUFFER_BEHIND)) {
+            const imgToRemove = imageCache.get(key);
+            if (imgToRemove) {
+                imgToRemove.onload = null;
+                imgToRemove.src = ""; // Help browser GC
+            }
+            imageCache.delete(key);
+        }
+    }
 }
 
-function prevFrame(): void {
-    if (preloaded.length === 0) return;
-    currentFrame = (currentFrame - 1 + preloaded.length) % preloaded.length;
-    showFrame(currentFrame);
-}
-
-function togglePlay(): void {
-    if (playing) {
-        if (interval) clearInterval(interval);
+function renderFrame(index: number) {
+    const cachedImage = imageCache.get(index);
+    
+    // Only swap the source if the image is actually loaded/complete
+    // This prevents "white flashes" on slow connections
+    if (cachedImage && cachedImage.complete && cachedImage.naturalWidth > 0) {
+        imgElement.src = cachedImage.src;
+        currentFrameIdx = index;
+        updateBuffer(index); // Update our look-ahead buffer
     } else {
-        interval = setInterval(nextFrame, 100); // Adjust speed as needed
+        // Frame not ready? 
+        // Option A: Skip to next frame (catch up)
+        // Option B: Wait (stutter) -> We will wait/stutter by doing nothing this frame
+        console.debug(`Frame ${index} buffering...`);
     }
-    playing = !playing;
 }
 
-function handleClick(event: MouseEvent): void {
+// --- Playback Loop ---
+
+function loop(timestamp: number) {
+    if (!isPlaying) return;
+
+    // Calculate time elapsed since last frame
+    const elapsed = timestamp - lastFrameTime;
+    const interval = 1000 / CONFIG.FPS;
+
+    if (elapsed > interval) {
+        // Advance frame
+        const nextIdx = (currentFrameIdx + 1) % manifest.length;
+        renderFrame(nextIdx);
+        
+        // Adjust for processing time drift
+        lastFrameTime = timestamp - (elapsed % interval);
+    }
+
+    animationFrameId = requestAnimationFrame(loop);
+}
+
+function startPlayback() {
+    if (isPlaying) return;
+    isPlaying = true;
+    lastFrameTime = performance.now();
+    loop(lastFrameTime);
+}
+
+function stopPlayback() {
+    isPlaying = false;
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
+}
+
+function togglePlay() {
+    isPlaying ? stopPlayback() : startPlayback();
+}
+
+// --- Interaction Handlers ---
+
+function nextFrame() {
+    stopPlayback(); // Manual interaction stops auto-play
+    const next = (currentFrameIdx + 1) % manifest.length;
+    renderFrame(next);
+}
+
+function prevFrame() {
+    stopPlayback();
+    const prev = (currentFrameIdx - 1 + manifest.length) % manifest.length;
+    renderFrame(prev);
+}
+
+function handleClick(event: MouseEvent) {
     const rect = container.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const width = rect.width;
-    
-    // Left third of the image
-    if (x < width / 3) {
-        if (playing) togglePlay(); // Pause if playing
-        prevFrame();
-    }
-    // Right third of the image
-    else if (x > (width * 2) / 3) {
-        if (playing) togglePlay(); // Pause if playing
-        nextFrame();
-    }
-    // Center third of the image
-    else {
-        togglePlay();
+
+    if (x < width / 3) prevFrame();
+    else if (x > (width * 2) / 3) nextFrame();
+    else togglePlay();
+}
+
+function handleTouchStart(e: TouchEvent) {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+}
+
+function handleTouchEnd(e: TouchEvent) {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+
+    if (Math.abs(dx) > CONFIG.SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
+        e.preventDefault(); // Prevent scroll
+        stopPlayback(); // Stop playing on swipe
+        if (dx < 0) nextFrame(); // Swipe Left -> Next
+        else prevFrame();        // Swipe Right -> Prev
     }
 }
 
-function handleTouchStart(event: TouchEvent): void {
-    touchStartX = event.touches[0].clientX;
-    touchStartY = event.touches[0].clientY;
-}
-
-function handleTouchEnd(event: TouchEvent): void {
-    const dx = event.changedTouches[0].clientX - touchStartX;
-    const dy = event.changedTouches[0].clientY - touchStartY;
-
-    // Only count as swipe if horizontal movement > 30px and dominates vertical
-    if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) {
-        event.preventDefault();
-        if (playing) togglePlay();
-        if (dx < 0) {
-            nextFrame(); // Swipe left → next
-        } else {
-            prevFrame(); // Swipe right → prev
-        }
+function hideAddressBar() {
+    if ('standalone' in window.navigator && !(window.navigator as any)['standalone']) {
+        setTimeout(() => window.scrollTo(0, 1), 50);
     }
 }
+
+// --- Event Listeners ---
 
 container.addEventListener("click", handleClick);
-container.addEventListener("touchstart", handleTouchStart, { passive: true });
+container.addEventListener("touchstart", handleTouchStart, { passive: false }); // passive: false needed for preventDefault
 container.addEventListener("touchend", handleTouchEnd);
-
-// Load images on startup
-loadImages();
-// Automatically play the timelapse
-togglePlay();
-
-// Add this function after your existing function declarations
-function hideAddressBar(): void {
-    // iOS Safari specific
-    if ('standalone' in window.navigator && !window.navigator['standalone']) {
-        // Add a slight delay to ensure DOM is ready
-        setTimeout(() => {
-            window.scrollTo(0, 1);
-        }, 50);
-    }
-}
-
-// Add event listener for orientation changes
 window.addEventListener('resize', hideAddressBar);
-window.addEventListener('orientationchange', hideAddressBar);
+
+// Start
+init();

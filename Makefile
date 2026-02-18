@@ -20,6 +20,6 @@ nginx-reload:
 code2prompt:
 	code2prompt . \
 		--template project.hbs \
-		--include "*.rs,*.ts,*.html,*.css,*.toml,*.conf" \
+		--include "*.rs,*.ts,*.html,*.css,*.toml,*.conf,*.json,Makefile" \
 		--exclude "**/dist/**,**.md**,**.hbs**" \
 		--output-file project_context.md
