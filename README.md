@@ -3,7 +3,10 @@
 ## TODO
 
 - [ ] https cert from letsencrypt
-- [ ] automatically get new images from NextCloud or Google Photos
+- [ ] Photo ingestion
+  - [ ] automatically get new images from NextCloud or Google Photos
+  - [ ] filter by geo location
+  - [ ] if no geo data then check the time against Strava walking activities to determine when Rusty photos were taken.
 - [ ] remove geo location data from images
 - [ ] auto resize new images
 - [ ] host on NUC or in VPS

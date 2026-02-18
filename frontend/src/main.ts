@@ -21,6 +21,8 @@ async function loadImages(): Promise<void> {
         images = await response.json();
         if (images.length > 0) {
             imgElement.src = `${imageUrl}/${images[0]}`;
+            // Hide address bar after image loads
+            imgElement.onload = hideAddressBar;
         }
     } catch (error) {
         console.error("Failed to load images:", error);
@@ -78,3 +80,18 @@ container.addEventListener("click", handleClick);
 loadImages();
 // Automatically play the timelapse
 togglePlay();
+
+// Add this function after your existing function declarations
+function hideAddressBar(): void {
+    // iOS Safari specific
+    if ('standalone' in window.navigator && !window.navigator['standalone']) {
+        // Add a slight delay to ensure DOM is ready
+        setTimeout(() => {
+            window.scrollTo(0, 1);
+        }, 50);
+    }
+}
+
+// Add event listener for orientation changes
+window.addEventListener('resize', hideAddressBar);
+window.addEventListener('orientationchange', hideAddressBar);

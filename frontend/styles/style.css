@@ -1,22 +1,23 @@
 img {
   width: 100vw;
-  height: auto;
+  height: 100vh;
+  object-fit: contain;
   margin: 0;
   max-width: 100%;
 }
 
 body {
   margin: 0;
+  overflow: hidden; /* Prevents scrolling */
 }
 
 /* When phone is in landscape mode */
 @media screen and (orientation: landscape) {
   img {
-      width: 100%;
-      height: 100vh;
-      object-fit: contain;
-      /* Optional: center the image if it doesn't fill the whole space */
-      display: block;
-      margin: 0;
+    width: 100%;
+    height: 100vh;
+    object-fit: contain;
+    display: block;
+    margin: 0;
   }
 }
