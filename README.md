@@ -12,6 +12,25 @@
 - [ ] host on NUC or in VPS
 - [ ] hookup to domain name
 
+## tl;dr
+
+```bash
+cd frontend/
+npx tsc
+cd ..
+nginx -c ./nginx/nginx.conf -p ./
+cd backend/
+cargo run
+```
+
+Navigate to `localhost:3000/`.
+
+To stop nginx run:
+
+```bash
+nginx -s stop -c ./nginx/nginx.conf -p ./
+```
+
 ## Frontend
 
 Compile:
