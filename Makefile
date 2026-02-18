@@ -1,17 +1,24 @@
-.PHONY: build clean
+.PHONY: build clean run-backend
 
-# Default target
-build: node_modules
-	npx tsc
+# Default target: Build both
+build: build-frontend build-backend
 
-# Install dependencies if they don't exist
-node_modules: package.json
-	npm install
-	touch node_modules
+# --- Frontend ---
+build-frontend:
+	cd frontend && npm install && npx tsc
 
-# Clean built files
+# --- Backend ---
+build-backend:
+	cd backend && cargo build --release
+
+# --- Utilities ---
 clean:
-	rm -rf dist 
+	rm -rf frontend/dist
+	cd backend && cargo clean
+
+# Run backend locally for testing
+run-backend:
+	cd backend && cargo run
 
 .PHONY: nginx-reload
 nginx-reload:

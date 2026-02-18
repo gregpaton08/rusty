@@ -1,7 +1,5 @@
 backend/images/*/
 backend/target/
-node_modules/
 nginx/logs/
 .DS_Store
-dist/
 project_context.md

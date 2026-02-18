@@ -2,7 +2,7 @@
 const CONFIG = {
     BUFFER_AHEAD: 50,      // How many frames to keep loaded ahead
     BUFFER_BEHIND: 20,     // How many frames to keep loaded behind (for reverse)
-    FPS: 15,               // Target playback speed
+    FPS: 8,                // Target playback speed
     SWIPE_THRESHOLD: 30,   // Pixels for touch swipe
 };
 
