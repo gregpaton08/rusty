@@ -8,9 +8,12 @@ const image_size = window.innerWidth <= 640 ? 'small'
 const imageUrl = `${backendUrl}/image/${image_size}/`;
 
 let images: string[] = [];
+let preloaded: HTMLImageElement[] = [];
 let currentFrame: number = 0;
 let playing: boolean = false;
 let interval: number | null = null;
+let touchStartX: number = 0;
+let touchStartY: number = 0;
 
 const imgElement = document.getElementById("timelapse") as HTMLImageElement;
 const container = document.getElementById("timelapseContainer") as HTMLDivElement;
@@ -20,8 +23,13 @@ async function loadImages(): Promise<void> {
         const response = await fetch(`${backendUrl}/images`);
         images = await response.json();
         if (images.length > 0) {
-            imgElement.src = `${imageUrl}/${images[0]}`;
-            // Hide address bar after image loads
+            // Preload all images
+            preloaded = images.map(name => {
+                const img = new Image();
+                img.src = `${imageUrl}/${name}`;
+                return img;
+            });
+            imgElement.src = preloaded[0].src;
             imgElement.onload = hideAddressBar;
         }
     } catch (error) {
@@ -29,18 +37,20 @@ async function loadImages(): Promise<void> {
     }
 }
 
-function nextFrame(): void {
-    if (images.length === 0) return;
+function showFrame(frame: number): void {
+    imgElement.src = preloaded[frame].src;
+}
 
-    currentFrame = (currentFrame + 1) % images.length; // Loop back to start
-    imgElement.src = `${imageUrl}/${images[currentFrame]}`;
+function nextFrame(): void {
+    if (preloaded.length === 0) return;
+    currentFrame = (currentFrame + 1) % preloaded.length;
+    showFrame(currentFrame);
 }
 
 function prevFrame(): void {
-    if (images.length === 0) return;
-
-    currentFrame = (currentFrame - 1 + images.length) % images.length; // Loop backward
-    imgElement.src = `${imageUrl}/${images[currentFrame]}`;
+    if (preloaded.length === 0) return;
+    currentFrame = (currentFrame - 1 + preloaded.length) % preloaded.length;
+    showFrame(currentFrame);
 }
 
 function togglePlay(): void {
@@ -73,8 +83,30 @@ function handleClick(event: MouseEvent): void {
     }
 }
 
-// Add new event listener
+function handleTouchStart(event: TouchEvent): void {
+    touchStartX = event.touches[0].clientX;
+    touchStartY = event.touches[0].clientY;
+}
+
+function handleTouchEnd(event: TouchEvent): void {
+    const dx = event.changedTouches[0].clientX - touchStartX;
+    const dy = event.changedTouches[0].clientY - touchStartY;
+
+    // Only count as swipe if horizontal movement > 30px and dominates vertical
+    if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) {
+        event.preventDefault();
+        if (playing) togglePlay();
+        if (dx < 0) {
+            nextFrame(); // Swipe left → next
+        } else {
+            prevFrame(); // Swipe right → prev
+        }
+    }
+}
+
 container.addEventListener("click", handleClick);
+container.addEventListener("touchstart", handleTouchStart, { passive: true });
+container.addEventListener("touchend", handleTouchEnd);
 
 // Load images on startup
 loadImages();

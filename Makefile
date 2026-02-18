@@ -12,3 +12,7 @@ node_modules: package.json
 # Clean built files
 clean:
 	rm -rf dist 
+
+.PHONY: nginx-reload
+nginx-reload:
+	nginx -s reload

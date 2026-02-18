@@ -9,6 +9,7 @@ img {
 body {
   margin: 0;
   overflow: hidden; /* Prevents scrolling */
+  background: black;
 }
 
 /* When phone is in landscape mode */
